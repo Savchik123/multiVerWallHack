@@ -1,14 +1,18 @@
-﻿// dllmain.cpp : Определяет точку входа для приложения DLL.
 #include "pch.h"
 #include <process.h>
 #include <windows.h>
 #include <iostream>
 #include <psapi.h>
+#include <thread>
 #include "wallhack.hpp"
 
 
-void wallhackMain(PVOID)
+
+void main()
 {
+    while (*reinterpret_cast<unsigned char*>(0xC8D4C0) != 9) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100u));
+    }
     static int sampInfo;
     static int presetsInfo;
     if (getSampVer() == "R1")
@@ -36,7 +40,9 @@ void wallhackMain(PVOID)
         sampInfo = samp_info::samp03DL;
         presetsInfo = presets::Prsamp03DL;
     }
-   
+
+    while (true)
+    {
         DWORD SampDLL = (DWORD)GetModuleHandleA("samp.dll");
         DWORD* pInfo = (DWORD*)(SampDLL + sampInfo);
         while (*pInfo == 0) Sleep(1000);
@@ -45,20 +51,26 @@ void wallhackMain(PVOID)
         float* fDistance = (float*)((DWORD*)(*(DWORD*)(*pInfo + presetsInfo) + 0x27));
         *fDistance = 1000.0f;
         *ThroughWalls = 0;
+    }
 }
 
 
-
-BOOL APIENTRY DllMain( HMODULE hModule,
-                       DWORD  ul_reason_for_call,
-                       LPVOID lpReserved
-                     )
+BOOL APIENTRY DllMain(HMODULE hModule,
+    DWORD  ul_reason_for_call,
+    LPVOID lpReserved
+)
 {
-    if (ul_reason_for_call == DLL_PROCESS_ATTACH)
+    switch (ul_reason_for_call)
     {
-        
-        _beginthread(wallhackMain, NULL, NULL);
+    case DLL_PROCESS_ATTACH:
+        DisableThreadLibraryCalls(hModule);
+        std::thread(main).detach();
+        break;
+
+    case DLL_THREAD_ATTACH:
+    case DLL_THREAD_DETACH:
+    case DLL_PROCESS_DETACH:
+        break;
     }
     return TRUE;
 }
-
